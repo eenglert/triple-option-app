@@ -8,14 +8,7 @@ const year = new Date().getFullYear();
 let week = 1;
 let refreshInterval = null;
 
-let users = [
-  { name: "User 1", team: { QB: null, RB: null, WR: null }, locked: false },
-  { name: "User 2", team: { QB: null, RB: null, WR: null }, locked: false },
-  { name: "User 3", team: { QB: null, RB: null, WR: null }, locked: false },
-  { name: "User 4", team: { QB: null, RB: null, WR: null }, locked: false },
-  { name: "User 5", team: { QB: null, RB: null, WR: null }, locked: false },
-  { name: "User 6", team: { QB: null, RB: null, WR: null }, locked: false },
-];
+let users = [];
 
 // ----------------------------------------
 // localStorage Helpers
@@ -25,18 +18,46 @@ function saveState() {
   localStorage.setItem("tripleOption_week", week);
 }
 
+// Returns "setup" | "selection" | "scoreboard" depending on saved progress
 function loadState() {
   const savedUsers = localStorage.getItem("tripleOption_users");
   const savedWeek = localStorage.getItem("tripleOption_week");
-  if (savedUsers) users = JSON.parse(savedUsers);
   if (savedWeek) week = parseInt(savedWeek, 10);
-  return users.every(u => u.locked);
+
+  if (!savedUsers) return "setup";
+
+  users = JSON.parse(savedUsers);
+  if (users.length === 0) return "setup";
+
+  return users.every(u => u.locked) ? "scoreboard" : "selection";
 }
 
 function resetApp() {
-  if (!confirm("Reset all teams and start over?")) return;
+  if (!confirm("Reset everything and start over from setup?")) return;
   localStorage.clear();
   location.reload();
+}
+
+// ----------------------------------------
+// Background Music Toggle
+// ----------------------------------------
+function initMusicToggle() {
+  const musicBtn = document.getElementById("music-toggle");
+  const bgMusic = document.getElementById("bg-music");
+  if (!musicBtn || !bgMusic) return;
+
+  let musicPlaying = false;
+
+  musicBtn.addEventListener("click", () => {
+    if (musicPlaying) {
+      bgMusic.pause();
+      musicBtn.textContent = "🔇";
+    } else {
+      bgMusic.play().catch(err => console.error("Playback blocked:", err));
+      musicBtn.textContent = "🔊";
+    }
+    musicPlaying = !musicPlaying;
+  });
 }
 
 // ----------------------------------------
@@ -68,7 +89,6 @@ async function fetchPlayersByName(position, searchTerm) {
       { headers: { "Authorization": `Bearer ${API_KEY}` } }
     );
     const data = await res.json();
-    // Filter to only players with a recent season (current year or last year)
     return data.filter(p => !p.lastSeason || p.lastSeason >= year - 1);
   } catch (err) {
     console.error(`Error fetching players by name:`, err);
@@ -86,7 +106,6 @@ async function fetchPlayersByTeam(position, teamName) {
       { headers: { "Authorization": `Bearer ${API_KEY}` } }
     );
     const data = await res.json();
-    // Filter roster to only the relevant position
     return data
       .filter(p => p.position === position)
       .map(p => ({
@@ -334,7 +353,7 @@ function renderScoreboardTeam(containerId, teamName, teamObj) {
 async function renderScoreboard() {
   console.log("Rendering scoreboard...");
 
-  document.getElementById("selection-screen").style.display = "none";
+  document.getElementById("selection-screen").classList.add("hidden");
   document.getElementById("scoreboard-screen").classList.remove("hidden");
 
   for (let user of users) {
@@ -402,30 +421,51 @@ function buildSearchRow(pos, idx) {
 }
 
 // ----------------------------------------
-// DOM Ready
+// Build Setup Screen (team count + names)
 // ----------------------------------------
-document.addEventListener("DOMContentLoaded", async () => {
-  console.log("Triple Option — initializing...");
-
-  const allLocked = loadState();
-  await getCurrentWeek();
-
-  const weekSelect = document.getElementById("week-select");
-  if (weekSelect) {
-    weekSelect.value = week;
-    weekSelect.addEventListener("change", (e) => {
-      week = parseInt(e.target.value, 10);
-      saveState();
-    });
+function renderTeamNameInputs(count) {
+  const container = document.getElementById("team-name-inputs");
+  container.innerHTML = "";
+  for (let i = 1; i <= count; i++) {
+    container.insertAdjacentHTML("beforeend", `
+      <label for="team-name-${i}">Team ${i} name:</label>
+      <input type="text" id="team-name-${i}" placeholder="e.g. The Blitz Brothers" maxlength="30" />
+    `);
   }
+}
 
-  if (allLocked) {
-    await renderScoreboard();
-    return;
-  }
+function initSetupScreen() {
+  const teamCountSelect = document.getElementById("team-count-select");
+  renderTeamNameInputs(parseInt(teamCountSelect.value, 10));
 
+  teamCountSelect.addEventListener("change", (e) => {
+    renderTeamNameInputs(parseInt(e.target.value, 10));
+  });
+
+  document.getElementById("start-draft-btn").addEventListener("click", () => {
+    const count = parseInt(teamCountSelect.value, 10);
+    const newUsers = [];
+    for (let i = 1; i <= count; i++) {
+      const nameInput = document.getElementById(`team-name-${i}`);
+      const name = (nameInput && nameInput.value.trim()) || `Team ${i}`;
+      newUsers.push({ name, team: { QB: null, RB: null, WR: null }, locked: false });
+    }
+    users = newUsers;
+    saveState();
+
+    document.getElementById("setup-screen").classList.add("hidden");
+    document.getElementById("selection-screen").classList.remove("hidden");
+    buildSelectionScreen();
+  });
+}
+
+// ----------------------------------------
+// Build Selection Screen (player picks)
+// ----------------------------------------
+function buildSelectionScreen() {
   const positions = ["qb", "rb", "wr"];
   const selectionContainer = document.getElementById("selection-container");
+  selectionContainer.innerHTML = "";
 
   users.forEach((user, idx) => {
     const userNum = idx + 1;
@@ -440,27 +480,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
     `);
 
-    // Wire up search and toggle for each position
     positions.forEach(pos => {
       const posUpper = pos.toUpperCase();
       const inputEl = document.getElementById(`${pos}-search-user${userNum}`);
       const selectId = `${pos}-select-user${userNum}`;
       const toggleEl = document.getElementById(`${pos}-toggle-user${userNum}`);
 
-      // Toggle switch — swap placeholder and search mode
       toggleEl.addEventListener("change", () => {
         const isTeamMode = toggleEl.checked;
         inputEl.value = "";
-        document.getElementById(`${pos}-select-user${userNum}`).innerHTML = "";
+        document.getElementById(selectId).innerHTML = "";
         inputEl.placeholder = isTeamMode
           ? `Search by team name (e.g. Indiana)`
           : `Search by player name`;
       });
 
-      // Search input — fires on every keystroke
       inputEl.addEventListener("input", async (e) => {
         const val = e.target.value.trim();
-        if (val.length < 2) return; // wait for at least 2 chars
+        if (val.length < 2) return;
         const isTeamMode = toggleEl.checked;
         const players = isTeamMode
           ? await fetchPlayersByTeam(posUpper, val)
@@ -469,7 +506,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
 
-    // Lock button
     const lockBtn = document.getElementById(`lock-team${userNum}`);
     lockBtn.addEventListener("click", async () => {
       user.team = buildTeam(
@@ -501,4 +537,42 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   });
+}
+
+// ----------------------------------------
+// DOM Ready
+// ----------------------------------------
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("Triple Option — initializing...");
+
+  initMusicToggle();
+
+  const stage = loadState();
+  await getCurrentWeek();
+
+  const weekSelect = document.getElementById("week-select");
+  if (weekSelect) {
+    weekSelect.value = week;
+    weekSelect.addEventListener("change", (e) => {
+      week = parseInt(e.target.value, 10);
+      saveState();
+    });
+  }
+
+  if (stage === "scoreboard") {
+    document.getElementById("setup-screen").classList.add("hidden");
+    document.getElementById("selection-screen").classList.add("hidden");
+    await renderScoreboard();
+    return;
+  }
+
+  if (stage === "selection") {
+    document.getElementById("setup-screen").classList.add("hidden");
+    document.getElementById("selection-screen").classList.remove("hidden");
+    buildSelectionScreen();
+    return;
+  }
+
+  // stage === "setup"
+  initSetupScreen();
 });
