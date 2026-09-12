@@ -328,11 +328,12 @@ function renderScoreboardTeam(containerId, teamName, teamObj) {
     const headshotUrl = player.id
       ? `https://a.espncdn.com/i/headshots/college-football/players/full/${player.id}.png`
       : "helmet_default.png";
+    const badgeClass = player.position === "QB" ? "badge-qb" : player.position === "RB" ? "badge-rb" : "badge-wr";
     return `
       <div class="player-row">
         <img src="${headshotUrl}" alt="${player.player}" class="player-headshot" />
         <div class="player-info">
-          <strong>${player.player}</strong> (${player.position} - ${player.team})
+          <strong><span class="position-badge ${badgeClass}">${player.position}</span> ${player.player} — ${player.team}</strong>
           <small>${player.stats}</small>
         </div>
         <div class="player-score">${player.points.toFixed(2)}</div>
@@ -399,11 +400,12 @@ function buildSearchRow(pos, idx) {
   const posLabel = posUpper === "QB" ? "Quarterback (QB)"
     : posUpper === "RB" ? "Running Back (RB)"
     : "Wide Receiver (WR)";
+  const badgeClass = posUpper === "QB" ? "badge-qb" : posUpper === "RB" ? "badge-rb" : "badge-wr";
 
   return `
     <div class="search-row">
       <div class="search-mode-toggle">
-        <label>${posLabel}:</label>
+        <label><span class="position-badge ${badgeClass}">${posUpper}</span> ${posLabel}:</label>
         <div class="toggle-wrap">
           <span class="toggle-label" id="${pos}-mode-label-user${idx}">Player</span>
           <label class="toggle-switch">
