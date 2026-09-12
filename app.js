@@ -30,7 +30,7 @@ function loadState() {
   const savedWeek = localStorage.getItem("tripleOption_week");
   if (savedUsers) users = JSON.parse(savedUsers);
   if (savedWeek) week = parseInt(savedWeek, 10);
-  return users.every(u => u.locked); // returns true if all teams were locked
+  return users.every(u => u.locked);
 }
 
 function resetApp() {
@@ -51,7 +51,6 @@ async function getCurrentWeek() {
     document.getElementById("current-week-display").textContent = `Week ${currentWeek}`;
     const weekSelect = document.getElementById("week-select");
     if (weekSelect) weekSelect.value = currentWeek;
-    console.log("Current week:", currentWeek);
     return currentWeek;
   } catch (err) {
     console.error("Failed to detect current week:", err);
@@ -60,17 +59,45 @@ async function getCurrentWeek() {
 }
 
 // ----------------------------------------
-// Fetch Players for Search
+// Search by Player Name (filtered by position + year)
 // ----------------------------------------
-async function fetchPlayers(position, searchTerm) {
+async function fetchPlayersByName(position, searchTerm) {
   try {
     const res = await fetch(
-      `${BASE_URL}/player/search?searchTerm=${encodeURIComponent(searchTerm)}&position=${position}`,
+      `${BASE_URL}/player/search?searchTerm=${encodeURIComponent(searchTerm)}&position=${position}&year=${year}`,
       { headers: { "Authorization": `Bearer ${API_KEY}` } }
     );
-    return await res.json();
+    const data = await res.json();
+    // Filter to only players with a recent season (current year or last year)
+    return data.filter(p => !p.lastSeason || p.lastSeason >= year - 1);
   } catch (err) {
-    console.error(`Error fetching ${position} players:`, err);
+    console.error(`Error fetching players by name:`, err);
+    return [];
+  }
+}
+
+// ----------------------------------------
+// Search by Team Name (fetch current roster, filter by position)
+// ----------------------------------------
+async function fetchPlayersByTeam(position, teamName) {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/roster?team=${encodeURIComponent(teamName)}&year=${year}`,
+      { headers: { "Authorization": `Bearer ${API_KEY}` } }
+    );
+    const data = await res.json();
+    // Filter roster to only the relevant position
+    return data
+      .filter(p => p.position === position)
+      .map(p => ({
+        id: p.id,
+        name: `${p.firstName} ${p.lastName}`,
+        team: teamName,
+        school: teamName,
+        position: p.position,
+      }));
+  } catch (err) {
+    console.error(`Error fetching roster for ${teamName}:`, err);
     return [];
   }
 }
@@ -81,6 +108,15 @@ async function fetchPlayers(position, searchTerm) {
 function populateDropdown(dropdownId, players) {
   const select = document.getElementById(dropdownId);
   select.innerHTML = "";
+
+  if (players.length === 0) {
+    const opt = document.createElement("option");
+    opt.textContent = "No players found";
+    opt.disabled = true;
+    select.appendChild(opt);
+    return;
+  }
+
   players.forEach(player => {
     const opt = document.createElement("option");
     opt.textContent = `${player.name} - ${player.team || player.school || ""}`;
@@ -109,6 +145,7 @@ function getSelected(selectId) {
   const sel = document.getElementById(selectId);
   if (!sel || !sel.value || sel.selectedIndex === -1) return null;
   const opt = sel.selectedOptions[0];
+  if (opt.disabled) return null;
   return {
     id: opt.dataset.id,
     player: opt.dataset.name,
@@ -324,16 +361,44 @@ async function renderScoreboard() {
 
   if (!refreshInterval) {
     refreshInterval = setInterval(async () => {
-      console.log("Refreshing stats...");
       for (let user of users) {
         if (user.locked) {
           await updateTeamStats(user.team);
           renderScoreboardTeam(`scoreboard-user${users.indexOf(user) + 1}`, user.name, user.team);
         }
       }
-      saveState(); // keep localStorage fresh on each refresh cycle
+      saveState();
     }, 120000);
   }
+}
+
+// ----------------------------------------
+// Build Search Row HTML for a position
+// ----------------------------------------
+function buildSearchRow(pos, idx) {
+  const posUpper = pos.toUpperCase();
+  const posLabel = posUpper === "QB" ? "Quarterback (QB)"
+    : posUpper === "RB" ? "Running Back (RB)"
+    : "Wide Receiver (WR)";
+
+  return `
+    <div class="search-row">
+      <div class="search-mode-toggle">
+        <label>${posLabel}:</label>
+        <div class="toggle-wrap">
+          <span class="toggle-label" id="${pos}-mode-label-user${idx}">Player</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="${pos}-toggle-user${idx}" />
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label">Team</span>
+        </div>
+      </div>
+      <input type="text" id="${pos}-search-user${idx}"
+        placeholder="Search by player name" />
+      <select id="${pos}-select-user${idx}"></select>
+    </div>
+  `;
 }
 
 // ----------------------------------------
@@ -342,66 +407,75 @@ async function renderScoreboard() {
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("Triple Option — initializing...");
 
-  const allLocked = loadState(); // restore from localStorage if available
-
+  const allLocked = loadState();
   await getCurrentWeek();
 
-  // If week was saved, apply it to dropdown too
   const weekSelect = document.getElementById("week-select");
   if (weekSelect) {
     weekSelect.value = week;
     weekSelect.addEventListener("change", (e) => {
       week = parseInt(e.target.value, 10);
       saveState();
-      console.log("Week changed to:", week);
     });
   }
 
-  // If all teams were already locked on last visit, go straight to scoreboard
   if (allLocked) {
-    console.log("Restored locked state — jumping to scoreboard.");
     await renderScoreboard();
     return;
   }
 
-  // Otherwise build the selection UI
   const positions = ["qb", "rb", "wr"];
   const selectionContainer = document.getElementById("selection-container");
 
   users.forEach((user, idx) => {
+    const userNum = idx + 1;
+
     selectionContainer.insertAdjacentHTML("beforeend", `
-      <div id="user-${idx + 1}-selection" class="team-selection">
+      <div id="user-${userNum}-selection" class="team-selection">
         <h3>${user.name}</h3>
-        <label>Quarterback (QB):</label>
-        <input type="text" id="qb-search-user${idx + 1}" placeholder="Search QB" />
-        <select id="qb-select-user${idx + 1}"></select>
-        <label>Running Back (RB):</label>
-        <input type="text" id="rb-search-user${idx + 1}" placeholder="Search RB" />
-        <select id="rb-select-user${idx + 1}"></select>
-        <label>Wide Receiver (WR):</label>
-        <input type="text" id="wr-search-user${idx + 1}" placeholder="Search WR" />
-        <select id="wr-select-user${idx + 1}"></select>
-        <button id="lock-team${idx + 1}">Lock ${user.name}</button>
+        ${buildSearchRow("qb", userNum)}
+        ${buildSearchRow("rb", userNum)}
+        ${buildSearchRow("wr", userNum)}
+        <button id="lock-team${userNum}">Lock ${user.name}</button>
       </div>
     `);
 
+    // Wire up search and toggle for each position
     positions.forEach(pos => {
-      const inputEl = document.getElementById(`${pos}-search-user${idx + 1}`);
-      const selectId = `${pos}-select-user${idx + 1}`;
-      if (inputEl) {
-        inputEl.addEventListener("input", async (e) => {
-          const players = await fetchPlayers(pos.toUpperCase(), e.target.value);
-          populateDropdown(selectId, players);
-        });
-      }
+      const posUpper = pos.toUpperCase();
+      const inputEl = document.getElementById(`${pos}-search-user${userNum}`);
+      const selectId = `${pos}-select-user${userNum}`;
+      const toggleEl = document.getElementById(`${pos}-toggle-user${userNum}`);
+
+      // Toggle switch — swap placeholder and search mode
+      toggleEl.addEventListener("change", () => {
+        const isTeamMode = toggleEl.checked;
+        inputEl.value = "";
+        document.getElementById(`${pos}-select-user${userNum}`).innerHTML = "";
+        inputEl.placeholder = isTeamMode
+          ? `Search by team name (e.g. Indiana)`
+          : `Search by player name`;
+      });
+
+      // Search input — fires on every keystroke
+      inputEl.addEventListener("input", async (e) => {
+        const val = e.target.value.trim();
+        if (val.length < 2) return; // wait for at least 2 chars
+        const isTeamMode = toggleEl.checked;
+        const players = isTeamMode
+          ? await fetchPlayersByTeam(posUpper, val)
+          : await fetchPlayersByName(posUpper, val);
+        populateDropdown(selectId, players);
+      });
     });
 
-    const lockBtn = document.getElementById(`lock-team${idx + 1}`);
+    // Lock button
+    const lockBtn = document.getElementById(`lock-team${userNum}`);
     lockBtn.addEventListener("click", async () => {
       user.team = buildTeam(
-        `qb-select-user${idx + 1}`,
-        `rb-select-user${idx + 1}`,
-        `wr-select-user${idx + 1}`
+        `qb-select-user${userNum}`,
+        `rb-select-user${userNum}`,
+        `wr-select-user${userNum}`
       );
 
       if (!user.team.QB || !user.team.RB || !user.team.WR) {
@@ -420,12 +494,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       lockBtn.style.backgroundColor = "#28a745";
       lockBtn.style.color = "#fff";
 
-      saveState(); // save after each team locks
-
-      console.log(`${user.name} locked (${users.filter(u => u.locked).length}/${users.length})`);
+      saveState();
 
       if (users.every(u => u.locked)) {
-        console.log("All teams locked — rendering scoreboard.");
         await renderScoreboard();
       }
     });
