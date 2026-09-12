@@ -318,6 +318,23 @@ async function updateTeamStats(teams) {
 }
 
 // ----------------------------------------
+// Animate a Number Counting Up
+// ----------------------------------------
+function animateNumber(el, endValue, duration = 700) {
+  const startValue = 0;
+  const startTime = performance.now();
+
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = startValue + (endValue - startValue) * eased;
+    el.textContent = current.toFixed(2);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ----------------------------------------
 // Render a Single Team on the Scoreboard
 // ----------------------------------------
 function renderScoreboardTeam(containerId, teamName, teamObj) {
@@ -336,7 +353,7 @@ function renderScoreboardTeam(containerId, teamName, teamObj) {
           <strong><span class="position-badge ${badgeClass}">${player.position}</span> ${player.player} — ${player.team}</strong>
           <small>${player.stats}</small>
         </div>
-        <div class="player-score">${player.points.toFixed(2)}</div>
+        <div class="player-score" data-score="${player.points.toFixed(2)}">0.00</div>
       </div>
     `;
   }).join("");
@@ -344,8 +361,25 @@ function renderScoreboardTeam(containerId, teamName, teamObj) {
   document.getElementById(containerId).innerHTML = `
     <h3>${teamName}</h3>
     ${html}
-    <div class="total-score">Total: ${total.toFixed(2)}</div>
+    <div class="total-score" data-score="${total.toFixed(2)}">Total: 0.00</div>
   `;
+
+  const container = document.getElementById(containerId);
+  container.querySelectorAll(".player-score").forEach(el => {
+    animateNumber(el, parseFloat(el.dataset.score));
+  });
+
+  const totalEl = container.querySelector(".total-score");
+  const totalTarget = parseFloat(totalEl.dataset.score);
+  const totalStart = performance.now();
+  function stepTotal(now) {
+    const progress = Math.min((now - totalStart) / 700, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = totalTarget * eased;
+    totalEl.textContent = `Total: ${current.toFixed(2)}`;
+    if (progress < 1) requestAnimationFrame(stepTotal);
+  }
+  requestAnimationFrame(stepTotal);
 }
 
 // ----------------------------------------
@@ -552,10 +586,9 @@ function buildSelectionScreen() {
       }
 
       user.locked = true;
-      lockBtn.textContent = `${user.name} — LOCKED ✓`;
+      lockBtn.innerHTML = `<span class="check-icon">✓</span> ${user.name} — Locked In`;
       lockBtn.disabled = true;
-      lockBtn.style.backgroundColor = "#28a745";
-      lockBtn.style.color = "#fff";
+      lockBtn.classList.add("locked-btn");
 
       saveState();
 

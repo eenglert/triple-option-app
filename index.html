@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Triple Option</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='50' rx='42' ry='28' fill='%23f4a300'/%3E%3Cpath d='M20 50 Q50 30 80 50' stroke='%23fff' stroke-width='3' fill='none'/%3E%3Cline x1='40' y1='42' x2='40' y2='58' stroke='%23fff' stroke-width='3'/%3E%3Cline x1='50' y1='40' x2='50' y2='60' stroke='%23fff' stroke-width='3'/%3E%3Cline x1='60' y1='42' x2='60' y2='58' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,7 +13,22 @@
 </head>
 <body>
   <header>
-    <h1>TRIPLE OPTION</h1>
+    <div class="logo-row">
+      <svg class="logo-icon" viewBox="0 0 100 60" width="40" height="24">
+        <ellipse cx="50" cy="30" rx="46" ry="26" fill="url(#ballGradient)" stroke="#fff" stroke-width="2"/>
+        <path d="M14 30 Q50 12 86 30" stroke="#fff" stroke-width="2.5" fill="none"/>
+        <line x1="36" y1="21" x2="36" y2="39" stroke="#fff" stroke-width="2.5"/>
+        <line x1="50" y1="18" x2="50" y2="42" stroke="#fff" stroke-width="2.5"/>
+        <line x1="64" y1="21" x2="64" y2="39" stroke="#fff" stroke-width="2.5"/>
+        <defs>
+          <linearGradient id="ballGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffd166"/>
+            <stop offset="100%" stop-color="#f4a300"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <h1>TRIPLE OPTION</h1>
+    </div>
     <h2 id="current-week-display">Week 1</h2>
   </header>
 
