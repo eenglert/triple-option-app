@@ -438,7 +438,7 @@ h1 {
 /* Utilities            */
 /* -------------------- */
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 #last-updated {
