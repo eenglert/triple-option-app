@@ -1,5 +1,4 @@
-// app.js
-// Triple Option — updated 9/12/25
+// app.js — Triple Option
 // ----------------------------------------
 
 const API_KEY = "T6SDoIo5R9uq6TSVdejFUkQpDfWi/aHnHwdgGS9nGkMQxDLO5MgGtum+24lqhidd";
