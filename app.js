@@ -18,7 +18,6 @@ function saveState() {
   localStorage.setItem("tripleOption_week", week);
 }
 
-// Returns "setup" | "selection" | "scoreboard" depending on saved progress
 function loadState() {
   const savedUsers = localStorage.getItem("tripleOption_users");
   const savedWeek = localStorage.getItem("tripleOption_week");
@@ -106,11 +105,12 @@ async function fetchPlayersByTeam(position, teamName) {
       { headers: { "Authorization": `Bearer ${API_KEY}` } }
     );
     const data = await res.json();
+    const targetPos = position.trim().toUpperCase();
     return data
-      .filter(p => p.position === position)
+      .filter(p => (p.position || "").trim().toUpperCase() === targetPos)
       .map(p => ({
         id: p.id,
-        name: `${p.firstName} ${p.lastName}`,
+        name: `${p.firstName || ""} ${p.lastName || ""}`.trim(),
         team: teamName,
         school: teamName,
         position: p.position,
@@ -480,13 +480,22 @@ function buildSelectionScreen() {
       </div>
     `);
 
+    // Track the latest search request per field to avoid race conditions,
+    // and debounce so we don't fire an API call on every keystroke.
+    const searchState = {};
+
     positions.forEach(pos => {
       const posUpper = pos.toUpperCase();
       const inputEl = document.getElementById(`${pos}-search-user${userNum}`);
       const selectId = `${pos}-select-user${userNum}`;
       const toggleEl = document.getElementById(`${pos}-toggle-user${userNum}`);
 
+      searchState[pos] = { requestId: 0, debounceTimer: null };
+
       toggleEl.addEventListener("change", () => {
+        clearTimeout(searchState[pos].debounceTimer);
+        searchState[pos].requestId++;
+
         const isTeamMode = toggleEl.checked;
         inputEl.value = "";
         document.getElementById(selectId).innerHTML = "";
@@ -495,14 +504,30 @@ function buildSelectionScreen() {
           : `Search by player name`;
       });
 
-      inputEl.addEventListener("input", async (e) => {
+      inputEl.addEventListener("input", (e) => {
         const val = e.target.value.trim();
-        if (val.length < 2) return;
-        const isTeamMode = toggleEl.checked;
-        const players = isTeamMode
-          ? await fetchPlayersByTeam(posUpper, val)
-          : await fetchPlayersByName(posUpper, val);
-        populateDropdown(selectId, players);
+        clearTimeout(searchState[pos].debounceTimer);
+
+        if (val.length < 2) {
+          document.getElementById(selectId).innerHTML = "";
+          return;
+        }
+
+        const select = document.getElementById(selectId);
+        select.innerHTML = `<option disabled selected>Searching...</option>`;
+
+        searchState[pos].debounceTimer = setTimeout(async () => {
+          const thisRequestId = ++searchState[pos].requestId;
+          const isTeamMode = toggleEl.checked;
+
+          const players = isTeamMode
+            ? await fetchPlayersByTeam(posUpper, val)
+            : await fetchPlayersByName(posUpper, val);
+
+          if (thisRequestId === searchState[pos].requestId) {
+            populateDropdown(selectId, players);
+          }
+        }, 350);
       });
     });
 
