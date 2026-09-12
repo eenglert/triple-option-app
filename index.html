@@ -14,8 +14,29 @@
 
   <div id="app-container">
 
+    <!-- Setup Screen -->
+    <div id="setup-screen">
+      <div class="setup-box">
+        <h2>Welcome to Triple Option</h2>
+        <p class="setup-subtext">Select the number of teams, give your teams a name, and get ready to select your lineup of 1 QB, 1 RB, and 1 WR.</p>
+
+        <label for="team-count-select">Number of teams:</label>
+        <select id="team-count-select">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6" selected>6</option>
+        </select>
+
+        <div id="team-name-inputs"></div>
+
+        <button id="start-draft-btn">Start Draft</button>
+      </div>
+    </div>
+
     <!-- Player Selection Screen -->
-    <div id="selection-screen">
+    <div id="selection-screen" class="hidden">
       <div id="week-selection">
         <label for="week-select">Select Week:</label>
         <select id="week-select">

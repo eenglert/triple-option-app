@@ -53,6 +53,86 @@ h1 {
 }
 
 /* -------------------- */
+/* Setup Screen         */
+/* -------------------- */
+#setup-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 1rem;
+}
+
+.setup-box {
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid #fff;
+  border-radius: 14px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  text-align: center;
+}
+
+.setup-box h2 {
+  color: yellow;
+  font-size: 1.8rem;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  margin-bottom: 0.75rem;
+}
+
+.setup-subtext {
+  color: #ddd;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.setup-box label {
+  display: block;
+  color: #ffcc00;
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  text-align: left;
+}
+
+.setup-box select,
+.setup-box input {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #000;
+  font-size: 1rem;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+
+#team-name-inputs {
+  margin-top: 0.5rem;
+}
+
+#start-draft-btn {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #ffcc00;
+  color: #000;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#start-draft-btn:hover {
+  background-color: #e6b800;
+}
+
+/* -------------------- */
 /* Player Selection     */
 /* -------------------- */
 #selection-container {

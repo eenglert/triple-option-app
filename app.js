@@ -432,7 +432,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     selectionContainer.insertAdjacentHTML("beforeend", `
       <div id="user-${userNum}-selection" class="team-selection">
-        <h3>${user.name}</h3>
+        <h3 class="team-name-display">${user.name}</h3>
         ${buildSearchRow("qb", userNum)}
         ${buildSearchRow("rb", userNum)}
         ${buildSearchRow("wr", userNum)}
